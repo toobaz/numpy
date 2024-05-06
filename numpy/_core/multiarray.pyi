@@ -390,6 +390,7 @@ def where(
 def lexsort(
     keys: ArrayLike,
     axis: None | SupportsIndex = ...,
+    int_path: bool | str = ...,
 ) -> Any: ...
 
 def can_cast(

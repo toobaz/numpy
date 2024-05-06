@@ -434,7 +434,82 @@ def where(condition, x=None, y=None):
 
 
 @array_function_from_c_func_and_dispatcher(_multiarray_umath.lexsort)
-def lexsort(keys, axis=None):
+def _general_lexsort(keys, axis=None):
+    """
+    Unspecialized code path for lexsort.
+
+    Parameters
+    ----------
+    keys : (k, m, n, ...) array-like
+        The `k` keys to be sorted. The *last* key (e.g, the last
+        row if `keys` is a 2D array) is the primary sort key.
+        Each element of `keys` along the zeroth axis must be
+        an array-like object of the same shape.
+    axis : int, optional
+        Axis to be indirectly sorted. By default, sort over the last axis
+        of each sequence. Separate slices along `axis` sorted over
+        independently; see last example.
+
+    Returns
+    -------
+    indices : (m, n, ...) ndarray of ints
+        Array of indices that sort the keys along the specified axis.
+
+    """
+
+    if isinstance(keys, tuple):
+        return keys
+    else:
+        return (keys,)
+
+def _int_lexsort(keys, kind=None, axis=None):
+    """
+    Specialized code path for lexsort on arrays of integers. Works by
+    aggregating all levels in a single integer array, and then sorting that
+    with argsort.
+
+    Parameters
+    ----------
+    keys : (k, m, n, ...) array-like
+        The `k` keys to be sorted. The *last* key (e.g, the last
+        row if `keys` is a 2D array) is the primary sort key.
+        Each element of `keys` along the zeroth axis must be
+        an array-like object of the same shape.
+    kind : {'quicksort', 'mergesort', 'heapsort', 'stable'}, optional
+        Sorting algorithm, passed on to argsort. The default is 'quicksort'.
+
+    Returns
+    -------
+    indices : (m, n, ...) ndarray of ints
+        Array of indices that sort the keys along the specified axis.
+
+    """
+    n_layers = len(arr)
+    work_arr = []
+
+    # Add shift in order to only work with positive integers from 0 to some
+    # max - this has no effect on the relative order.
+    for i in range(n_layers):
+        values_range = arr[i].max() - arr[i].min()
+        # If even a single layer cannot be stored
+        dtype = (np.uint if values_range < np.iinfo(np.uint).max
+                 else object)
+        work_arr[i] = np.array(arr[i], dtype=dtype) + arr[i].min()
+
+    # Go backwards for consistency with np.lexsort:
+    bits_for_layers = [0] + [int(np.ceil(np.log2(max(arr[i].max() + 1, 1))))
+                       for i in range(n_layers-2, -1, -1)]
+
+    # Compute bit shifts:
+    cum_bits = np.cumsum(bits_for_layers)
+
+    # Apply shifts, combining numbers at any given position into a single int:
+    prod = np.bitwise_or.reduce([arr[i] << cum_bits[i]
+                                 for i in range(n_layers)])
+    # Sort the resulting "summary" numbers:
+    return np.argsort(prod, kind=kind, axis=axis)
+
+def lexsort(keys, axis=None, int_path=False):
     """
     lexsort(keys, axis=-1)
 
@@ -456,6 +531,12 @@ def lexsort(keys, axis=None):
         Axis to be indirectly sorted. By default, sort over the last axis
         of each sequence. Separate slices along `axis` sorted over
         independently; see last example.
+    int_path : bool or one of {'quicksort', 'mergesort', 'heapsort', 'stable'},
+        optional
+        If True or string, use a more efficient and flexible code path only
+        supporting arrays with key values. Defaults to False.
+        Passing one of the supported string values allows to specify the
+        sorting logic (see the "kind" argument to argsort).
 
     Returns
     -------
@@ -547,11 +628,11 @@ def lexsort(keys, axis=None):
     [1 0 3 2]
 
     """
-    if isinstance(keys, tuple):
-        return keys
-    else:
-        return (keys,)
+    if int_path:
+        kind = None if int_path is True else int_path
+        return _int_lexsort(keys, kind=int_path, axis=axis)
 
+    return _general_lexsort(keys, axis=axis)
 
 @array_function_from_c_func_and_dispatcher(_multiarray_umath.can_cast)
 def can_cast(from_, to, casting=None):
