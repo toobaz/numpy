@@ -1793,7 +1793,7 @@ PyArray_ArgPartition(PyArrayObject *op, PyArrayObject *ktharray, int axis,
  *the given axis.
  */
 NPY_NO_EXPORT PyObject *
-PyArray_LexSort(PyObject *sort_keys, int axis)
+PyArray_LexSort(PyObject *sort_keys, int axis, NPY_SORTKIND which)
 {
     PyArrayObject **mps;
     PyArrayIterObject **its;
@@ -1849,7 +1849,7 @@ PyArray_LexSort(PyObject *sort_keys, int axis)
                 goto fail;
             }
         }
-        if (!PyDataType_GetArrFuncs(PyArray_DESCR(mps[i]))->argsort[NPY_STABLESORT]
+        if (!PyDataType_GetArrFuncs(PyArray_DESCR(mps[i]))->argsort[which]
                 && !PyDataType_GetArrFuncs(PyArray_DESCR(mps[i]))->compare) {
             PyErr_Format(PyExc_TypeError,
                          "item %zd type does not have compare function", i);
@@ -1966,9 +1966,22 @@ PyArray_LexSort(PyObject *sort_keys, int axis)
                 int rcode;
                 elsize = PyArray_ITEMSIZE(mps[j]);
                 astride = PyArray_STRIDES(mps[j])[axis];
-                argsort = PyDataType_GetArrFuncs(PyArray_DESCR(mps[j]))->argsort[NPY_STABLESORT];
-                if(argsort == NULL) {
-                    argsort = npy_atimsort;
+                argsort = PyDataType_GetArrFuncs(PyArray_DESCR(mps[j]))->argsort[which];
+                if (argsort == NULL) {
+                    if (PyDataType_GetArrFuncs(PyArray_DESCR(mps[j]))->compare) {
+                        switch (which) {
+                            default:
+                            case NPY_QUICKSORT:
+                                argsort = npy_aquicksort;
+                                break;
+                            case NPY_HEAPSORT:
+                                argsort = npy_aheapsort;
+                                break;
+                            case NPY_STABLESORT:
+                                argsort = npy_atimsort;
+                                break;
+                        }
+                    }
                 }
                 _unaligned_strided_byte_copy(valbuffer, (npy_intp) elsize,
                                              its[j]->dataptr, astride, N, elsize);
@@ -2001,9 +2014,22 @@ PyArray_LexSort(PyObject *sort_keys, int axis)
             }
             for (j = 0; j < n; j++) {
                 int rcode;
-                argsort = PyDataType_GetArrFuncs(PyArray_DESCR(mps[j]))->argsort[NPY_STABLESORT];
-                if(argsort == NULL) {
-                    argsort = npy_atimsort;
+                argsort = PyDataType_GetArrFuncs(PyArray_DESCR(mps[j]))->argsort[which];
+                if (argsort == NULL) {
+                    if (PyDataType_GetArrFuncs(PyArray_DESCR(mps[j]))->compare) {
+                        switch (which) {
+                            default:
+                            case NPY_QUICKSORT:
+                                argsort = npy_aquicksort;
+                                break;
+                            case NPY_HEAPSORT:
+                                argsort = npy_aheapsort;
+                                break;
+                            case NPY_STABLESORT:
+                                argsort = npy_atimsort;
+                                break;
+                        }
+                    }
                 }
                 rcode = argsort(its[j]->dataptr,
                         (npy_intp *)rit->dataptr, N, mps[j]);

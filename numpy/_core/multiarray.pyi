@@ -42,6 +42,7 @@ from numpy import (
     _OrderCF,
     _CastingKind,
     _ModeKind,
+    _SortKind,
     _SupportsBuffer,
     _IOProtocol,
     _CopyMode,
@@ -390,6 +391,7 @@ def where(
 def lexsort(
     keys: ArrayLike,
     axis: None | SupportsIndex = ...,
+    kind: None | _SortKind = ...,
 ) -> Any: ...
 
 def can_cast(

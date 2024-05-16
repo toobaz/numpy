@@ -434,11 +434,12 @@ def where(condition, x=None, y=None):
 
 
 @array_function_from_c_func_and_dispatcher(_multiarray_umath.lexsort)
-def lexsort(keys, axis=None):
+def lexsort(keys, axis=None, kind=None):
     """
     lexsort(keys, axis=-1)
 
-    Perform an indirect stable sort using a sequence of keys.
+    Perform an indirect sort (stable by default - see "kind" parameter) using a
+    sequence of keys.
 
     Given multiple sorting keys, lexsort returns an array of integer indices
     that describes the sort order by multiple keys. The last key in the
@@ -456,6 +457,8 @@ def lexsort(keys, axis=None):
         Axis to be indirectly sorted. By default, sort over the last axis
         of each sequence. Separate slices along `axis` sorted over
         independently; see last example.
+    kind : {'quicksort', 'mergesort', 'heapsort', 'stable'}, optional
+        Sorting algorithm. The default is 'stable'. See argsort for details.
 
     Returns
     -------

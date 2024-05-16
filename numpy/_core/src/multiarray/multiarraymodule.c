@@ -3471,16 +3471,23 @@ array_lexsort(PyObject *NPY_UNUSED(ignored), PyObject *const *args, Py_ssize_t l
                              PyObject *kwnames)
 {
     int axis = -1;
+    NPY_SORTKIND sortkind = _NPY_SORT_UNDEFINED;
     PyObject *obj;
 
     NPY_PREPARE_ARGPARSER;
     if (npy_parse_arguments("lexsort", args, len_args, kwnames,
             "keys", NULL, &obj,
             "|axis", PyArray_PythonPyIntFromInt, &axis,
+            "|kind", &PyArray_SortkindConverter, &sortkind,
             NULL, NULL, NULL) < 0) {
         return NULL;
     }
-    return PyArray_Return((PyArrayObject *)PyArray_LexSort(obj, axis));
+
+    if (sortkind == _NPY_SORT_UNDEFINED) {
+        sortkind = NPY_STABLESORT;
+    }
+
+    return PyArray_Return((PyArrayObject *)PyArray_LexSort(obj, axis, sortkind));
 }
 
 static PyObject *

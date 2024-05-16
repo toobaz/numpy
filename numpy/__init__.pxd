@@ -655,7 +655,7 @@ cdef extern from "numpy/arrayobject.h":
     object PyArray_Arange (double, double, double, int)
     #object PyArray_ArangeObj (object, object, object, dtype)
     int PyArray_SortkindConverter (object, NPY_SORTKIND *) except 0
-    object PyArray_LexSort (object, int)
+    object PyArray_LexSort (object, int, NPY_SORTKIND)
     object PyArray_Round (ndarray, int, ndarray)
     unsigned char PyArray_EquivTypenums (int, int)
     int PyArray_RegisterDataType (dtype) except -1
